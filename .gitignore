@@ -1,0 +1,15 @@
+cache/
+out/
+docs/
+**/*.rs.bk
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
+target
+node_modules
+lib
+.env*
+zz*
+justfile
+aarchives
+accountclones
