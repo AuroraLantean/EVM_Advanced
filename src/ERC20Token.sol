@@ -39,3 +39,136 @@ contract USDX is ERC20Token {
         return 6;
     }
 }
+
+interface IERC20Receiver {
+    /**
+     * @dev Whenever an {IERC20} `tokenId` token is transferred to this contract via {IERC20-safeTransferFrom}
+     * by `operator` from `from`, this function is called.
+     *
+     * It must return its Solidity selector to confirm the token transfer.
+     * If any other value is returned or the interface is not implemented by the recipient, the transfer will be reverted.
+     *
+     * The selector can be obtained in Solidity with `IERC20Receiver.tokenReceived.selector`.
+     */
+    function tokenReceived(address from, uint256 amount, bytes calldata data) external returns (bytes4);
+}
+
+contract ERC20Receiver is IERC20Receiver {
+    using SafeERC20 for IERC20;
+    //using SafeERC20 for IERC1363;
+
+    event TokenReceived(address indexed from, uint256 indexed amount, bytes data);
+
+    bytes4 private constant _ERC20_RECEIVED = 0x8943ec02;
+    // Equals to `bytes4(keccak256(abi.encodePacked("tokenReceived(address,uint256,bytes)")))`
+    // OR IERC20Receiver.tokenReceived.selector
+
+    /* The selector can be obtained in Solidity with `IERC20Receiver.tokenReceived.selector` */
+    function tokenReceived(address from, uint256 amount, bytes calldata data) external returns (bytes4) {
+        //console.log("tokenReceived");
+        emit TokenReceived(from, amount, data);
+        return _ERC20_RECEIVED;
+    }
+
+    address public owner;
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    //to withdraw
+    /*function transfer(address erc20Addr, address to, uint256 amount) public {
+        IERC20(erc20Addr).transfer(to, amount);
+    }*/
+
+    // If `token` returns no value, non-reverting calls are assumed to be successful.
+    function safeTransfer(address erc20Addr, address to, uint256 amount) public {
+        IERC20(erc20Addr).safeTransfer(to, amount);
+    }
+
+    //to deposit: from = address(this)
+    //to transfer: from = another contract
+    /*function transferFrom(address erc20Addr, address from, uint256 amount) public {
+        IERC20(erc20Addr).transferFrom(msg.sender, from, amount);
+    }*/
+
+    //calling contract. If `token` returns no value, non-reverting calls are assumed to be successful.
+    function safeTransferFrom(address erc20Addr, address from, uint256 amount) public {
+        IERC20(erc20Addr).safeTransferFrom(msg.sender, from, amount);
+    }
+
+    //returns a bool instead of reverting if the operation is not successful.
+    function trySafeTransfer(address erc20Addr, address to, uint256 amount) public {
+        IERC20(erc20Addr).trySafeTransfer(to, amount);
+    }
+
+    //returns a bool instead of reverting if the operation is not successful.
+    function trySafeTransferFrom(address erc20Addr, address from, uint256 amount) public {
+        IERC20(erc20Addr).trySafeTransferFrom(msg.sender, from, amount);
+    }
+
+    /*If `token` returns no value, non-reverting calls are assumed to be successful.
+
+    IMPORTANT: If the token implements ERC-7674 (ERC-20 with temporary allowance), and if the "client" smart contract uses ERC-7674 to set temporary allowances, then the "client" smart contract should avoid using
+    this function. 
+    
+    Performing a {safeIncreaseAllowance} or {safeDecreaseAllowance} operation on a token contract that has a non-zero temporary allowance (for that particular owner-spender) will result in unexpected behavior. */
+    function safeIncreaseAllowance(address erc20Addr, address spender, uint256 amount) public {
+        IERC20(erc20Addr).safeIncreaseAllowance(spender, amount);
+    }
+
+    /* If `token` returns no value, non-reverting calls are assumed to be successful.
+
+    IMPORTANT: If the token implements ERC-7674 (ERC-20 with temporary allowance), and if the "client" smart contract uses ERC-7674 to set temporary allowances, then the "client" smart contract should avoid using this function. 
+    
+    Performing a {safeIncreaseAllowance} or {safeDecreaseAllowance} operation on a token contract that has a non-zero temporary allowance (for that particular owner-spender) will result in unexpected behavior.     */
+    function safeDecreaseAllowance(address erc20Addr, address spender, uint256 amount) public {
+        IERC20(erc20Addr).safeDecreaseAllowance(spender, amount);
+    }
+
+    /* If `token` returns no value,non-reverting calls are assumed to be successful. Meant to be used with tokens that require the approval to be set to zero before setting it to a non-zero value, such as USDT.
+    
+    NOTE: If the token implements ERC-7674, this function will not modify any temporary allowance. This function only sets the "standard" allowance. Any temporary allowance will remain active, in addition to the value being set here. */
+    function forceApprove(address erc20Addr, address spender, uint256 amount) public {
+        IERC20(erc20Addr).forceApprove(spender, amount);
+    }
+
+    function safePermit(
+        address erc20Addr,
+        IERC20Permit token,
+        address tokenOwner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public {
+        //IERC20(erc20Addr).safePermit(token, tokenOwner, spender, value, deadline, v, r, s);
+    }
+
+    function executeTxn(address _ctrt, uint256 _value, bytes calldata _data) public {
+        //console.log("executeTxn()...", _data, msg.value);
+        (bool success, /*bytes memory _databk*/ ) = _ctrt.call{value: _value}(_data);
+        //console.logBytes(_databk);
+        require(success, "tx failed");
+    }
+
+    //be careful of function signature typo, and arg types
+    function makeCalldata(string memory _funcSig, address to, uint256 amount) public pure returns (bytes memory) {
+        //_funcSig example: "transfer(address,uint256)"
+        return abi.encodeWithSignature(_funcSig, to, amount);
+    }
+
+    function makeBytes() public pure returns (bytes4) {
+        return bytes4(keccak256(abi.encodePacked("tokenReceived(address,uint256,bytes)")));
+    }
+
+    function makeBytes2() public pure returns (bytes4) {
+        return IERC20Receiver.tokenReceived.selector;
+    }
+
+    receive() external payable {
+        revert("should not send any ether directly");
+    }
+}
